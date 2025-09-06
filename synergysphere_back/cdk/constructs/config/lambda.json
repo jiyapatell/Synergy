@@ -1,0 +1,10 @@
+[
+    {
+        "name": "project",
+        "description": "Lambda function to manage project",
+        "timeout": 300,
+        "memory_size": 1024,
+        "ephemeral_storage_size": 2048,
+        "environment": ["SUFFIX"]
+    }
+]

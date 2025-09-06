@@ -1,0 +1,18 @@
+[
+    {
+        "name": "projects",
+        "description": "Example DynamoDB table for demonstration",
+        "partition_key": "id",
+        "sort_key": null,
+        "read_capacity": 5,
+        "write_capacity": 5
+    },
+    {
+        "name": "tasks",
+        "description": "DynamoDB table to store tasks associated with projects",
+        "partition_key": "id",
+        "sort_key": "project_id",
+        "read_capacity": 5,
+        "write_capacity": 5
+    }
+]

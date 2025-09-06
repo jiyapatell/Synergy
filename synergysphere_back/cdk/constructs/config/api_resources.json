@@ -1,0 +1,36 @@
+{
+    "backend_api_endpoints": {
+        "project": [
+            {
+                "LAMBDA": "project",
+                "METHOD": "GET",
+                "REQUEST_PARAMETER" : {
+                    "method.request.querystring.action": true,
+                    "method.request.querystring.sub_action": false
+                }
+            },
+            {
+                "LAMBDA": "project",
+                "METHOD": "POST",
+                "REQUEST_PARAMETER" : {
+                    "method.request.querystring.action": true
+                }
+            },
+            {
+                "LAMBDA": "project",
+                "METHOD": "PUT",
+                "REQUEST_PARAMETER" : {
+                    "method.request.querystring.action": true
+                }
+            },
+            {
+                "LAMBDA": "project",
+                "METHOD": "DELETE",
+                "REQUEST_PARAMETER" : {
+                    "method.request.querystring.action": true,
+                    "method.request.querystring.id": true
+                }
+            }
+        ]
+    }
+}
