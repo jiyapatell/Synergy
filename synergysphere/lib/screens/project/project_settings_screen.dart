@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../constants/app_constants.dart';
+import '../../providers/project_provider.dart';
+import '../../models/project.dart';
+import 'team_members_screen.dart';
 
 class ProjectSettingsScreen extends StatefulWidget {
-  const ProjectSettingsScreen({super.key});
+  final Project? project;
+  
+  const ProjectSettingsScreen({super.key, this.project});
 
   @override
   State<ProjectSettingsScreen> createState() => _ProjectSettingsScreenState();
@@ -57,7 +63,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
                   title: 'Edit Project',
                   subtitle: 'Update project name and description',
                   onTap: () {
-                    // Navigate to edit project
+                    _showEditProjectDialog();
                   },
                 ),
                 _buildMenuItem(
@@ -65,7 +71,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
                   title: 'Project Color',
                   subtitle: 'Change project color theme',
                   onTap: () {
-                    // Show color picker
+                    _showColorPickerDialog();
                   },
                 ),
                 _buildMenuItem(
@@ -73,7 +79,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
                   title: 'Due Date',
                   subtitle: 'Set or update project deadline',
                   onTap: () {
-                    // Show date picker
+                    _showDatePickerDialog();
                   },
                 ),
               ],
@@ -90,7 +96,7 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
                   title: 'Invite Members',
                   subtitle: 'Add new team members to the project',
                   onTap: () {
-                    // Show invite dialog
+                    _showInviteMembersDialog();
                   },
                 ),
                 _buildMenuItem(
@@ -98,7 +104,12 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
                   title: 'Manage Members',
                   subtitle: 'View and manage existing members',
                   onTap: () {
-                    // Navigate to members list
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TeamMembersScreen(projectId: widget.project?.id ?? ''),
+                      ),
+                    );
                   },
                 ),
                 _buildMenuItem(
@@ -260,6 +271,14 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
             onPressed: () {
               Navigator.of(context).pop();
               // Archive project logic
+              final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+              if (widget.project != null) {
+                final updatedProject = widget.project!.copyWith(
+                  status: ProjectStatus.onHold,
+                  updatedAt: DateTime.now(),
+                );
+                projectProvider.updateProject(updatedProject);
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Project archived successfully'),
@@ -294,6 +313,11 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
             onPressed: () {
               Navigator.of(context).pop();
               // Delete project logic
+              final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+              if (widget.project != null) {
+                projectProvider.deleteProject(widget.project!.id);
+                Navigator.of(context).pop(); // Go back to project list
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Project deleted successfully'),
@@ -305,6 +329,210 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
               backgroundColor: AppTheme.errorColor,
             ),
             child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProjectDialog() {
+    final nameController = TextEditingController(text: widget.project?.name ?? '');
+    final descriptionController = TextEditingController(text: widget.project?.description ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Project'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Project Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingM),
+            TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Update project in provider
+              final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+              if (widget.project != null) {
+                final updatedProject = widget.project!.copyWith(
+                  name: nameController.text,
+                  description: descriptionController.text,
+                );
+                projectProvider.updateProject(updatedProject);
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Project updated successfully'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showColorPickerDialog() {
+    final colors = [
+      const Color(0xFF6366F1), // Purple
+      const Color(0xFF10B981), // Green
+      const Color(0xFFF59E0B), // Yellow
+      const Color(0xFFEF4444), // Red
+      const Color(0xFF8B5CF6), // Violet
+      const Color(0xFF06B6D4), // Cyan
+      const Color(0xFF84CC16), // Lime
+      const Color(0xFFF97316), // Orange
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choose Project Color'),
+        content: Wrap(
+          spacing: AppConstants.spacingM,
+          runSpacing: AppConstants.spacingM,
+          children: colors.map((color) => GestureDetector(
+            onTap: () {
+              Navigator.of(context).pop();
+              // Update project color in provider
+              final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+              if (widget.project != null) {
+                final updatedProject = widget.project!.copyWith(
+                  color: '#${color.value.toRadixString(16).substring(2)}',
+                );
+                projectProvider.updateProject(updatedProject);
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Project color updated successfully'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(AppConstants.radiusM),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 2,
+                ),
+              ),
+            ),
+          )).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDatePickerDialog() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: widget.project?.dueDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (date != null) {
+      // Update project due date in provider
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      if (widget.project != null) {
+        final updatedProject = widget.project!.copyWith(
+          dueDate: date,
+        );
+        projectProvider.updateProject(updatedProject);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Due date set to ${date.day}/${date.month}/${date.year}'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    }
+  }
+
+  void _showInviteMembersDialog() {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Invite Team Member'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email Address',
+                hintText: 'Enter member\'s email',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: AppConstants.spacingM),
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(
+                labelText: 'Role',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'member', child: Text('Member')),
+                DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                DropdownMenuItem(value: 'viewer', child: Text('Viewer')),
+              ],
+              onChanged: (value) {},
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Invitation sent to ${emailController.text}'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+            child: const Text('Send Invite'),
           ),
         ],
       ),

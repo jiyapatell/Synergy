@@ -24,18 +24,27 @@ class TrelloProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('Loading project data for: $projectId');
+      
       // Load demo data
       _projectLists = TrelloDemoDataService.getDemoProjectLists(projectId);
+      print('Loaded ${_projectLists.length} lists');
+      
       _projectCards = [];
       
       // Load cards for each list
       for (final list in _projectLists) {
         final listCards = TrelloDemoDataService.getDemoCards(projectId, list.id);
         _projectCards.addAll(listCards);
+        print('Loaded ${listCards.length} cards for list: ${list.name}');
       }
       
       _teamMembers = TrelloDemoDataService.getDemoTeamMembers(projectId);
+      print('Loaded ${_teamMembers.length} team members');
+      
+      print('Total cards loaded: ${_projectCards.length}');
     } catch (e) {
+      print('Error loading project data: $e');
       _errorMessage = 'Failed to load project data: $e';
     } finally {
       _isLoading = false;

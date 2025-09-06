@@ -9,6 +9,9 @@ import '../../services/demo_data_service.dart';
 import 'task_board_screen.dart';
 import 'project_settings_screen.dart';
 import 'trello_board_screen.dart';
+import 'board_templates_screen.dart';
+import 'power_ups_screen.dart';
+import 'enhanced_card_detail_screen.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final Project project;
@@ -24,7 +27,7 @@ class ProjectDetailScreen extends StatefulWidget {
 
 class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     with TickerProviderStateMixin {
-  int _currentTabIndex = 0;
+  int _currentTabIndex = 1; // Start with Board tab instead of Tasks tab
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -34,9 +37,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   void initState() {
     super.initState();
     _tabs = [
-      const TaskBoardScreen(),
+      TaskBoardScreen(projectId: widget.project.id),
       TrelloBoardScreen(projectId: widget.project.id),
-      const ProjectSettingsScreen(),
+      ProjectSettingsScreen(project: widget.project),
     ];
     
     _animationController = AnimationController(
@@ -137,14 +140,54 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                 ),
               ),
               const Spacer(),
-              IconButton(
-                onPressed: () {
-                  // Show project options
-                },
+              PopupMenuButton<String>(
+                onSelected: _handleMenuAction,
                 icon: const Icon(
                   Icons.more_vert_rounded,
                   color: Colors.white,
                 ),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'templates',
+                    child: Row(
+                      children: [
+                        Icon(Icons.dashboard_customize),
+                        SizedBox(width: 8),
+                        Text('Board Templates'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'powerups',
+                    child: Row(
+                      children: [
+                        Icon(Icons.extension),
+                        SizedBox(width: 8),
+                        Text('Power-Ups'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(Icons.download),
+                        SizedBox(width: 8),
+                        Text('Export Board'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'archive',
+                    child: Row(
+                      children: [
+                        Icon(Icons.archive),
+                        SizedBox(width: 8),
+                        Text('Archive Project'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -240,7 +283,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
 
   Widget _buildTabBar() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppConstants.spacingL),
+      margin: const EdgeInsets.symmetric(horizontal: AppConstants.spacingM),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
@@ -280,8 +323,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       onTap: () => _onTabChanged(index),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          vertical: AppConstants.spacingM,
-          horizontal: AppConstants.spacingL,
+          vertical: AppConstants.spacingS,
+          horizontal: AppConstants.spacingS,
         ),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
@@ -289,22 +332,124 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
               color: isSelected ? AppTheme.primaryColor : Colors.white,
-              size: 20,
+              size: 18,
             ),
-            const SizedBox(width: AppConstants.spacingS),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: isSelected ? AppTheme.primaryColor : Colors.white,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            const SizedBox(width: AppConstants.spacingXS),
+            Flexible(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: isSelected ? AppTheme.primaryColor : Colors.white,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _handleMenuAction(String action) {
+    switch (action) {
+      case 'templates':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BoardTemplatesScreen(projectId: widget.project.id),
+          ),
+        );
+        break;
+      case 'powerups':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PowerUpsScreen(),
+          ),
+        );
+        break;
+      case 'export':
+        _exportBoard();
+        break;
+      case 'archive':
+        _archiveProject();
+        break;
+    }
+  }
+
+  void _exportBoard() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Board'),
+        content: const Text('Choose the format to export your board data:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Board exported as CSV successfully!'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+            child: const Text('CSV'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Board exported as JSON successfully!'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+            child: const Text('JSON'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _archiveProject() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Archive Project'),
+        content: const Text('Are you sure you want to archive this project? You can restore it later from the archived projects section.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Project archived successfully!'),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+            ),
+            child: const Text('Archive'),
+          ),
+        ],
       ),
     );
   }

@@ -11,7 +11,9 @@ import 'create_task_screen.dart';
 import 'task_detail_screen.dart';
 
 class TaskBoardScreen extends StatefulWidget {
-  const TaskBoardScreen({super.key});
+  final String? projectId;
+  
+  const TaskBoardScreen({super.key, this.projectId});
 
   @override
   State<TaskBoardScreen> createState() => _TaskBoardScreenState();
@@ -42,12 +44,23 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> with TickerProviderSt
   }
 
   Future<void> _loadDemoData() async {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    if (authProvider.currentUser != null) {
-      // Load demo data for demonstration
-      await taskProvider.loadProjectTasks('current_project_id');
+    try {
+      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Load demo data for demonstration (even without current user for demo purposes)
+      final projectId = widget.projectId ?? 'current_project_id';
+      print('Loading tasks for project: $projectId');
+      print('Current user: ${authProvider.currentUser?.name ?? 'No user'}');
+      await taskProvider.loadProjectTasks(projectId);
+      print('Tasks loaded: ${taskProvider.tasks.length}');
+      
+      // Force a rebuild
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error loading task data: $e');
     }
   }
 
@@ -61,9 +74,53 @@ class _TaskBoardScreenState extends State<TaskBoardScreen> with TickerProviderSt
   Widget build(BuildContext context) {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, child) {
+        print('TaskProvider state - isLoading: ${taskProvider.isLoading}, tasks: ${taskProvider.tasks.length}');
+        
         if (taskProvider.isLoading) {
           return const Center(
             child: CircularProgressIndicator(),
+          );
+        }
+
+        if (taskProvider.tasks.isEmpty) {
+          return FadeTransition(
+            opacity: _fadeAnimation,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.task_alt_outlined,
+                    size: 64,
+                    color: AppTheme.textTertiary,
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+                  Text(
+                    'No Tasks Yet',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingS),
+                  Text(
+                    'Create your first task to get started',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppConstants.spacingL),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Add task functionality
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Task'),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import '../../models/card.dart';
 import '../../models/project_list.dart';
 import '../../models/team_member.dart';
@@ -9,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../constants/app_constants.dart';
 import '../../services/trello_demo_data_service.dart';
 import 'card_detail_screen.dart';
+import 'enhanced_card_detail_screen.dart';
 import 'create_card_screen.dart';
 import 'team_members_screen.dart';
 
@@ -24,19 +26,51 @@ class TrelloBoardScreen extends StatefulWidget {
   State<TrelloBoardScreen> createState() => _TrelloBoardScreenState();
 }
 
-class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
+class _TrelloBoardScreenState extends State<TrelloBoardScreen> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  CardStatus? _filterStatus;
+  List<String> _filterLabels = [];
+  bool _showCompletedCards = true;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
     _loadProjectData();
   }
 
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadProjectData() async {
-    final trelloProvider = Provider.of<TrelloProvider>(context, listen: false);
-    await trelloProvider.loadProjectData(widget.projectId);
+    try {
+      final trelloProvider = Provider.of<TrelloProvider>(context, listen: false);
+      await trelloProvider.loadProjectData(widget.projectId);
+    } catch (e) {
+      print('Error loading project data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading project data: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -49,6 +83,16 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _showSearchDialog,
+            tooltip: 'Search Cards',
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+            tooltip: 'Filter Cards',
+          ),
           IconButton(
             icon: const Icon(Icons.people_outline),
             onPressed: () => _showTeamMembers(),
@@ -69,8 +113,87 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
             );
           }
 
+          if (trelloProvider.errorMessage != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppTheme.errorColor,
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+                  Text(
+                    'Error Loading Board',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingS),
+                  Text(
+                    trelloProvider.errorMessage!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppConstants.spacingL),
+                  ElevatedButton(
+                    onPressed: () {
+                      trelloProvider.clearError();
+                      _loadProjectData();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final lists = trelloProvider.projectLists;
           final cards = trelloProvider.projectCards;
+          final filteredCards = _filterCards(cards);
+
+          if (lists.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.dashboard_outlined,
+                    size: 64,
+                    color: AppTheme.textTertiary,
+                  ),
+                  const SizedBox(height: AppConstants.spacingM),
+                  Text(
+                    'No Board Data',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingS),
+                  Text(
+                    'This project doesn\'t have any board data yet.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppConstants.spacingL),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      _showCreateCardDialog();
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create First Card'),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return AnimationLimiter(
             child: ListView.builder(
@@ -79,7 +202,7 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
               itemCount: lists.length,
               itemBuilder: (context, index) {
                 final list = lists[index];
-                final listCards = cards.where((card) => card.listId == list.id).toList();
+                final listCards = filteredCards.where((card) => card.listId == list.id).toList();
                 
                 return AnimationConfiguration.staggeredList(
                   position: index,
@@ -168,6 +291,7 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
                 
                 final card = cards[index];
                 return AnimationConfiguration.staggeredList(
+                  key: ValueKey(card.id),
                   position: index,
                   duration: const Duration(milliseconds: 375),
                   child: SlideAnimation(
@@ -393,7 +517,7 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CardDetailScreen(card: card),
+        builder: (context) => EnhancedCardDetailScreen(card: card),
       ),
     );
   }
@@ -434,5 +558,196 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> {
     } else {
       return '${-difference} days ago';
     }
+  }
+
+  List<ProjectCard> _filterCards(List<ProjectCard> cards) {
+    return cards.where((card) {
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        if (!card.title.toLowerCase().contains(query) &&
+            !card.description.toLowerCase().contains(query)) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (_filterStatus != null && card.status != _filterStatus) {
+        return false;
+      }
+
+      // Label filter
+      if (_filterLabels.isNotEmpty) {
+        final cardLabelIds = card.labels.map((l) => l.id).toList();
+        if (!_filterLabels.any((labelId) => cardLabelIds.contains(labelId))) {
+          return false;
+        }
+      }
+
+      // Completed cards filter
+      if (!_showCompletedCards && card.status == CardStatus.done) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Search Cards'),
+        content: TextField(
+          controller: _searchController,
+          decoration: const InputDecoration(
+            hintText: 'Search by title or description...',
+            prefixIcon: Icon(Icons.search),
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _searchQuery = '';
+                _searchController.clear();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog() {
+    final trelloProvider = Provider.of<TrelloProvider>(context, listen: false);
+    final allLabels = trelloProvider.projectCards
+        .expand((card) => card.labels)
+        .map((label) => label.id)
+        .toSet()
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Filter Cards'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status filter
+                Text(
+                  'Status',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingS),
+                Wrap(
+                  spacing: AppConstants.spacingS,
+                  children: [
+                    FilterChip(
+                      label: const Text('All'),
+                      selected: _filterStatus == null,
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterStatus = null;
+                        });
+                      },
+                    ),
+                    ...CardStatus.values.map((status) => FilterChip(
+                      label: Text(status.displayName),
+                      selected: _filterStatus == status,
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterStatus = selected ? status : null;
+                        });
+                      },
+                    )),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingM),
+
+                // Label filter
+                Text(
+                  'Labels',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingS),
+                Wrap(
+                  spacing: AppConstants.spacingS,
+                  children: allLabels.map((labelId) {
+                    final label = trelloProvider.projectCards
+                        .expand((card) => card.labels)
+                        .firstWhere((l) => l.id == labelId);
+                    return FilterChip(
+                      label: Text(label.name),
+                      selected: _filterLabels.contains(labelId),
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          if (selected) {
+                            _filterLabels.add(labelId);
+                          } else {
+                            _filterLabels.remove(labelId);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: AppConstants.spacingM),
+
+                // Show completed cards
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _showCompletedCards,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          _showCompletedCards = value ?? true;
+                        });
+                      },
+                    ),
+                    const Text('Show completed cards'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _filterStatus = null;
+                  _filterLabels.clear();
+                  _showCompletedCards = true;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Clear All'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

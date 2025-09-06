@@ -8,6 +8,7 @@ import '../../services/demo_data_service.dart';
 import '../auth/login_screen.dart';
 import 'project_list_screen.dart';
 import 'profile_screen.dart';
+import '../project/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   final List<Widget> _screens = [
     const ProjectListScreen(),
+    const NotificationsScreen(),
     const ProfileScreen(),
   ];
 
@@ -120,6 +122,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   icon: Icon(Icons.dashboard_rounded),
                   activeIcon: Icon(Icons.dashboard_rounded),
                   label: 'Projects',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.notifications_outlined),
+                  activeIcon: Icon(Icons.notifications),
+                  label: 'Notifications',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.person_rounded),

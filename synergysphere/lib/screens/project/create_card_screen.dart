@@ -87,7 +87,7 @@ class _CreateCardScreenState extends State<CreateCardScreen> with TickerProvider
           child: SlideTransition(
             position: _slideAnimation,
             child: Container(
-              height: MediaQuery.of(context).size.height * 0.9,
+              height: MediaQuery.of(context).size.height * 0.95,
               decoration: const BoxDecoration(
                 color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.vertical(
@@ -324,6 +324,7 @@ class _CreateCardScreenState extends State<CreateCardScreen> with TickerProvider
                               ),
                             ),
                             const SizedBox(height: AppConstants.spacingL),
+                            const SizedBox(height: AppConstants.spacingXL), // Extra padding for bottom
                           ],
                         ),
                       ),

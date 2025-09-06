@@ -47,6 +47,7 @@ class DemoDataService {
   }
 
   static List<Task> getDemoTasks(String projectId, String creatorId) {
+    print('Generating demo tasks for project: $projectId, creator: $creatorId');
     final users = getDemoUsers();
     final tasks = <Task>[];
     
@@ -71,6 +72,7 @@ class DemoDataService {
       ));
     }
     
+    print('Generated ${tasks.length} demo tasks');
     return tasks;
   }
 
