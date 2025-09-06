@@ -291,7 +291,7 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> with TickerProvid
                 
                 final card = cards[index];
                 return AnimationConfiguration.staggeredList(
-                  key: ValueKey(card.id),
+                  key: ValueKey('card_${card.id}'),
                   position: index,
                   duration: const Duration(milliseconds: 375),
                   child: SlideAnimation(
@@ -465,6 +465,7 @@ class _TrelloBoardScreenState extends State<TrelloBoardScreen> with TickerProvid
 
   Widget _buildAddCardButton(ProjectList list) {
     return Container(
+      key: ValueKey('add_card_${list.id}'),
       margin: const EdgeInsets.only(bottom: AppConstants.spacingM),
       child: Card(
         elevation: 0,

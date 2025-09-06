@@ -46,13 +46,15 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppConstants.spacingL),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Consumer<ProjectProvider>(
+      builder: (context, projectProvider, child) {
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppConstants.spacingL),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // Project Overview
             _buildSection(
               'Project Overview',
@@ -178,6 +180,8 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
         ),
       ),
     );
+      },
+    );
   }
 
   Widget _buildSection(String title, IconData icon, List<Widget> children) {
@@ -272,8 +276,11 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
               Navigator.of(context).pop();
               // Archive project logic
               final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-              if (widget.project != null) {
-                final updatedProject = widget.project!.copyWith(
+              final currentProject = projectProvider.projects
+                  .where((p) => p.id == widget.project?.id)
+                  .firstOrNull ?? widget.project;
+              if (currentProject != null) {
+                final updatedProject = currentProject.copyWith(
                   status: ProjectStatus.onHold,
                   updatedAt: DateTime.now(),
                 );
@@ -314,8 +321,11 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
               Navigator.of(context).pop();
               // Delete project logic
               final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-              if (widget.project != null) {
-                projectProvider.deleteProject(widget.project!.id);
+              final currentProject = projectProvider.projects
+                  .where((p) => p.id == widget.project?.id)
+                  .firstOrNull ?? widget.project;
+              if (currentProject != null) {
+                projectProvider.deleteProject(currentProject.id);
                 Navigator.of(context).pop(); // Go back to project list
               }
               ScaffoldMessenger.of(context).showSnackBar(
@@ -336,8 +346,12 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
   }
 
   void _showEditProjectDialog() {
-    final nameController = TextEditingController(text: widget.project?.name ?? '');
-    final descriptionController = TextEditingController(text: widget.project?.description ?? '');
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final currentProject = projectProvider.projects
+        .where((p) => p.id == widget.project?.id)
+        .firstOrNull ?? widget.project;
+    final nameController = TextEditingController(text: currentProject?.name ?? '');
+    final descriptionController = TextEditingController(text: currentProject?.description ?? '');
 
     showDialog(
       context: context,
@@ -373,9 +387,8 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
             onPressed: () {
               Navigator.of(context).pop();
               // Update project in provider
-              final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-              if (widget.project != null) {
-                final updatedProject = widget.project!.copyWith(
+              if (currentProject != null) {
+                final updatedProject = currentProject.copyWith(
                   name: nameController.text,
                   description: descriptionController.text,
                 );
@@ -419,8 +432,11 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
               Navigator.of(context).pop();
               // Update project color in provider
               final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-              if (widget.project != null) {
-                final updatedProject = widget.project!.copyWith(
+              final currentProject = projectProvider.projects
+                  .where((p) => p.id == widget.project?.id)
+                  .firstOrNull ?? widget.project;
+              if (currentProject != null) {
+                final updatedProject = currentProject.copyWith(
                   color: '#${color.value.toRadixString(16).substring(2)}',
                 );
                 projectProvider.updateProject(updatedProject);
@@ -457,18 +473,21 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> with Tick
   }
 
   void _showDatePickerDialog() async {
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final currentProject = projectProvider.projects
+        .where((p) => p.id == widget.project?.id)
+        .firstOrNull ?? widget.project;
     final date = await showDatePicker(
       context: context,
-      initialDate: widget.project?.dueDate ?? DateTime.now(),
+      initialDate: currentProject?.dueDate ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
 
     if (date != null) {
       // Update project due date in provider
-      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-      if (widget.project != null) {
-        final updatedProject = widget.project!.copyWith(
+      if (currentProject != null) {
+        final updatedProject = currentProject.copyWith(
           dueDate: date,
         );
         projectProvider.updateProject(updatedProject);
